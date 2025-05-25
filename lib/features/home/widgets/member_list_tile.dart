@@ -57,8 +57,8 @@ class MemberListTile extends StatelessWidget {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: (trailingColor ?? AppColors.accentColor).withOpacity(
-                      0.1,
+                    color: (trailingColor ?? AppColors.accentColor).withValues(
+                      alpha: 0.1,
                     ),
                     borderRadius: BorderRadius.circular(20),
                   ),
