@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:gymnex_manage/core/utils/app_colors.dart';
 import 'package:gymnex_manage/core/utils/app_typography.dart';
+import 'package:gymnex_manage/core/utils/qr_generator.dart';
+import 'package:gymnex_manage/features/business/simple_location_setup.dart';
 import 'package:gymnex_manage/widgets/custom_button.dart';
 import 'package:gymnex_manage/widgets/custom_text_field.dart';
 import 'package:image_picker/image_picker.dart';
@@ -19,7 +21,10 @@ class GymSetupScreen extends StatefulWidget {
 
 class _GymSetupScreenState extends State<GymSetupScreen> {
   final formKey = GlobalKey<FormState>();
-
+  double? latitude;
+  double? longitude;
+  double? geofenceRadius;
+  final GlobalKey qrKey = GlobalKey();
   // Text controllers
   final gymNameController = TextEditingController();
   final addressController = TextEditingController();
@@ -53,6 +58,27 @@ class _GymSetupScreenState extends State<GymSetupScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  void _openLocationSetup() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => SimpleLocationSetupScreen(
+              initialLatitude: latitude,
+              initialLongitude: longitude,
+              initialRadius: geofenceRadius,
+            ),
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        latitude = result['latitude'];
+        longitude = result['longitude'];
+        geofenceRadius = result['radius'];
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -94,6 +120,11 @@ class _GymSetupScreenState extends State<GymSetupScreen> {
             phoneController.text = data['phone'] ?? '';
             emailController.text = data['email'] ?? '';
             logoImagePath = data['logoUrl'] ?? '';
+
+            // Load location data
+            latitude = data['latitude'];
+            longitude = data['longitude'];
+            geofenceRadius = data['geofenceRadius']?.toDouble();
 
             if (data['businessDays'] != null) {
               final List<dynamic> days = data['businessDays'];
@@ -535,6 +566,10 @@ class _GymSetupScreenState extends State<GymSetupScreen> {
         'currency': selectedCurrency,
         'taxRate': double.tryParse(taxRateController.text) ?? 0,
         'updatedAt': FieldValue.serverTimestamp(),
+        // Add location data
+        'latitude': latitude,
+        'longitude': longitude,
+        'geofenceRadius': geofenceRadius,
       };
 
       await _firestore
@@ -880,7 +915,8 @@ class _GymSetupScreenState extends State<GymSetupScreen> {
                   ),
 
                   const SizedBox(height: 32),
-
+                  // Location and Check-in Section
+                  _buildLocationSection(),
                   // Additional Settings
                   _buildSectionHeader("Additional Settings"),
                   const SizedBox(height: 16),
@@ -967,6 +1003,129 @@ class _GymSetupScreenState extends State<GymSetupScreen> {
     );
   }
 
+  Widget _buildLocationSection() {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Location & Check-in', style: AppTypography.h3),
+            SizedBox(height: 16),
+
+            // Location status
+            Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.inputBackground,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.inputBorder),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    latitude != null && longitude != null
+                        ? Icons.check_circle
+                        : Icons.location_off,
+                    color:
+                        latitude != null && longitude != null
+                            ? Colors.green
+                            : AppColors.mutedText,
+                    size: 36,
+                  ),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          latitude != null && longitude != null
+                              ? 'Location Set'
+                              : 'Location Not Set',
+                          style: AppTypography.bodyLarge.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color:
+                                latitude != null && longitude != null
+                                    ? Colors.green
+                                    : AppColors.mutedText,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          latitude != null && longitude != null
+                              ? 'Geofence radius: ${geofenceRadius?.toInt() ?? 100} meters'
+                              : 'Set your gym location to enable check-ins',
+                          style: AppTypography.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    icon: Icon(
+                      latitude != null && longitude != null
+                          ? Icons.edit_location_alt
+                          : Icons.add_location_alt,
+                      size: 20,
+                    ),
+                    label: Text(
+                      latitude != null && longitude != null ? 'EDIT' : 'SET',
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accentColor,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
+                    onPressed: _openLocationSetup,
+                  ),
+                ],
+              ),
+            ),
+
+            SizedBox(height: 20),
+
+            // QR Code section
+            Text(
+              'Gym QR Code',
+              style: AppTypography.bodyMedium.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Generate a QR code for your gym to let members register easily.',
+              style: AppTypography.bodySmall,
+            ),
+            SizedBox(height: 12),
+
+            CustomButton(
+              text: 'GENERATE QR CODE',
+              icon: Icons.qr_code,
+              isOutlined: true,
+              onPressed: businessId != null ? _generateAndShareQRCode : null,
+            ),
+
+            if (businessId == null)
+              Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  'Save gym details first to generate QR code',
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.mutedText,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSectionHeader(String title) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -975,6 +1134,125 @@ class _GymSetupScreenState extends State<GymSetupScreen> {
         const SizedBox(height: 4),
         Divider(color: AppColors.divider, thickness: 1),
       ],
+    );
+  }
+
+  // Update the _generateAndShareQRCode method in your gym_setup_screen.dart file
+
+  void _generateAndShareQRCode() {
+    if (businessId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please save the gym details first')),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.cardBackground,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder:
+          (context) => DraggableScrollableSheet(
+            initialChildSize: 0.85,
+            minChildSize: 0.5,
+            maxChildSize: 0.95,
+            expand: false,
+            builder:
+                (context, controller) => Column(
+                  children: [
+                    // Title bar
+                    Container(
+                      padding: EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: AppColors.divider),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Text('GYM QR CODE', style: AppTypography.h3),
+                          Spacer(),
+                          IconButton(
+                            icon: Icon(
+                              Icons.close,
+                              color: AppColors.primaryText,
+                            ),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // QR code content
+                    Expanded(
+                      child: SingleChildScrollView(
+                        controller: controller,
+                        padding: EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Use this QR code to let members join your gym',
+                              style: AppTypography.bodyMedium,
+                              textAlign: TextAlign.center,
+                            ),
+                            SizedBox(height: 20),
+
+                            // QR Code
+                            RepaintBoundary(
+                              key: qrKey,
+                              child: QRGenerator.generateGymQRCard(
+                                gymId: businessId!,
+                                gymName: gymNameController.text,
+                                gymAddress: addressController.text,
+                                gymLogo: logoImagePath,
+                              ),
+                            ),
+
+                            SizedBox(height: 30),
+
+                            // Share button
+                            ElevatedButton.icon(
+                              icon: Icon(Icons.share),
+                              label: Text('SHARE QR CODE'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.accentColor,
+                                foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 32,
+                                  vertical: 12,
+                                ),
+                              ),
+                              onPressed: () async {
+                                await QRGenerator.shareQRCode(
+                                  qrKey,
+                                  gymNameController.text.isNotEmpty
+                                      ? gymNameController.text.replaceAll(
+                                        ' ',
+                                        '_',
+                                      )
+                                      : 'gymnex_gym',
+                                );
+                              },
+                            ),
+
+                            SizedBox(height: 20),
+                            Text(
+                              'ID: $businessId',
+                              style: AppTypography.bodySmall.copyWith(
+                                color: AppColors.mutedText,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+          ),
     );
   }
 
@@ -987,7 +1265,7 @@ class _GymSetupScreenState extends State<GymSetupScreen> {
         decoration: BoxDecoration(
           color:
               businessDays[index]
-                  ? AppColors.accentColor.withOpacity(0.15)
+                  ? AppColors.accentColor.withValues(alpha: 0.15)
                   : AppColors.cardBackground,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(

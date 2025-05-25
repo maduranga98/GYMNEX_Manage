@@ -364,7 +364,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ..._userBusinesses.map(
               (business) => ListTile(
                 selected: business['id'] == _selectedBusinessId,
-                selectedTileColor: AppColors.accentColor.withOpacity(0.1),
+                selectedTileColor: AppColors.accentColor.withValues(alpha: 0.1),
                 leading: Container(
                   width: 40,
                   height: 40,
@@ -413,7 +413,7 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 40,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
-                color: AppColors.accentColor.withOpacity(0.1),
+                color: AppColors.accentColor.withValues(alpha: 0.1),
                 border: Border.all(color: AppColors.accentColor, width: 1),
               ),
               child: Icon(Icons.add, size: 20, color: AppColors.accentColor),

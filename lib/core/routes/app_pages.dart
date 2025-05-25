@@ -6,6 +6,7 @@ import 'package:gymnex_manage/core/bindings/login_binding.dart';
 import 'package:gymnex_manage/core/bindings/register_binding.dart';
 import 'package:gymnex_manage/core/bindings/splash_binding.dart';
 import 'package:gymnex_manage/features/business/gym_setup_screen.dart';
+import 'package:gymnex_manage/features/home/home_page_temp.dart';
 import 'package:gymnex_manage/features/home/home_screen.dart';
 import 'package:gymnex_manage/features/auth/login_screen.dart';
 import 'package:gymnex_manage/features/auth/register_screen.dart';

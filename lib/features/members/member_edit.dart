@@ -434,7 +434,7 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
     if (_formKey.currentState!.validate()) {
       if (widget.isNewMember) {
         final newMember = Member(
-          id: '', // This will be set by Firestore
+          id: '',
           name: _nameController.text,
           email: _emailController.text,
           phone: _phoneController.text,
